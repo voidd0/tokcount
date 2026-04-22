@@ -1,0 +1,73 @@
+{
+  "name": "@v0idd0/tokcount",
+  "version": "2.0.0",
+  "description": "Count LLM tokens and estimate cost across 50+ models — GPT-5, Claude 4, Gemini 2.5, Grok 4, DeepSeek, Llama 3.3, Mistral, Qwen, Cohere, Nova. Runs locally, no API keys, no telemetry. Free forever from vøiddo.",
+  "main": "src/counter.js",
+  "bin": {
+    "tokcount": "./bin/tokcount.js"
+  },
+  "scripts": {
+    "test": "node test.js",
+    "start": "node bin/tokcount.js"
+  },
+  "keywords": [
+    "tokens",
+    "token-count",
+    "token-counter",
+    "tokenizer",
+    "llm",
+    "llm-cost",
+    "cost-estimator",
+    "openai",
+    "gpt",
+    "gpt-4",
+    "gpt-4o",
+    "gpt-4.1",
+    "gpt-5",
+    "o1",
+    "o3",
+    "anthropic",
+    "claude",
+    "claude-4",
+    "claude-opus",
+    "claude-sonnet",
+    "claude-haiku",
+    "google",
+    "gemini",
+    "gemini-pro",
+    "gemini-2.5",
+    "meta",
+    "llama",
+    "llama-3",
+    "mistral",
+    "xai",
+    "grok",
+    "deepseek",
+    "qwen",
+    "cohere",
+    "nova",
+    "context-window",
+    "context-limit",
+    "developer-tools",
+    "cli",
+    "free",
+    "voiddo"
+  ],
+  "author": "vøiddo <support@voiddo.com> (https://voiddo.com)",
+  "license": "MIT",
+  "homepage": "https://voiddo.com/tools/tokcount/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/voidd0/tokcount.git"
+  },
+  "bugs": {
+    "url": "https://github.com/voidd0/tokcount/issues",
+    "email": "support@voiddo.com"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
