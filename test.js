@@ -57,9 +57,27 @@ test('resolveModel canonicalizes known keys', () => {
 
 test('resolveModel maps aliases', () => {
   assert(counter.resolveModel('claude') === 'claude-sonnet-4-6', 'claude alias');
-  assert(counter.resolveModel('gemini') === 'gemini-2.5-flash', 'gemini alias');
-  assert(counter.resolveModel('openai') === 'gpt-4o', 'openai alias');
-  assert(counter.resolveModel('llama') === 'llama-3.3-70b', 'llama alias');
+  assert(counter.resolveModel('gemini') === 'gemini-3-flash', 'gemini alias');
+  assert(counter.resolveModel('openai') === 'gpt-5.4', 'openai alias');
+  assert(counter.resolveModel('llama') === 'llama-4-maverick', 'llama alias');
+  assert(counter.resolveModel('opus') === 'claude-opus-4-7', 'opus alias');
+  assert(counter.resolveModel('reasoning') === 'o3', 'reasoning alias');
+  assert(counter.resolveModel('o1') === 'o3', 'o1 alias redirects to o3 after retirement');
+});
+
+test('reasoning models are tagged', () => {
+  const reasoning = counter.listModels({ tag: 'reasoning' });
+  assert(reasoning.length >= 5, `Should have ≥5 reasoning models, got ${reasoning.length}`);
+  const keys = reasoning.map((r) => r.model);
+  assert(keys.includes('o3'), 'should include o3');
+  assert(keys.includes('deepseek-r1') || keys.includes('deepseek-r2'), 'should include deepseek R');
+  assert(keys.includes('magistral-medium'), 'should include magistral');
+});
+
+test('provider filter narrows listModels', () => {
+  const anthropic = counter.listModels({ provider: 'anthropic' });
+  assert(anthropic.length > 0);
+  assert(anthropic.every((r) => r.provider === 'anthropic'));
 });
 
 test('resolveModel falls back to default for unknown', () => {

@@ -79,22 +79,30 @@ tokcount huge.txt --model claude-opus-4-7 --limit 500000
 tokcount --list-models
 ```
 
-## What's covered (50+ models, pricing snapshot 2026-04)
+## What's covered (60+ models, pricing snapshot 2026-04-22)
 
 | Provider | Models |
 |---|---|
-| **OpenAI** | `gpt-3.5-turbo`, `gpt-4`, `gpt-4-turbo`, `gpt-4o`, `gpt-4o-mini`, `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1-nano`, `gpt-5`, `gpt-5-mini`, `gpt-5-nano`, `o1`, `o1-mini`, `o3`, `o3-mini`, `o4-mini` |
-| **Anthropic** | `claude-3-haiku`, `claude-3-sonnet`, `claude-3-opus`, `claude-3.5-haiku`, `claude-3.5-sonnet`, `claude-3.7-sonnet`, `claude-haiku-4-5`, `claude-sonnet-4`, `claude-sonnet-4-6`, `claude-opus-4`, `claude-opus-4-7` |
-| **Google** | `gemini-1.5-flash`, `gemini-1.5-pro`, `gemini-2.0-flash`, `gemini-2.5-flash-lite`, `gemini-2.5-flash`, `gemini-2.5-pro` |
-| **Meta** | `llama-3-8b`, `llama-3-70b`, `llama-3.1-8b`, `llama-3.1-70b`, `llama-3.1-405b`, `llama-3.3-70b` |
-| **Mistral** | `mistral-small`, `mistral-medium`, `mistral-large`, `mistral-nemo`, `codestral` |
-| **xAI** | `grok-2`, `grok-3`, `grok-4` |
-| **DeepSeek** | `deepseek-v3`, `deepseek-r1` |
-| **Alibaba** | `qwen-2.5`, `qwen-3` |
-| **Cohere** | `command-r`, `command-r-plus` |
-| **AWS** | `nova-micro`, `nova-lite`, `nova-pro` |
+| **OpenAI** | `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.4-nano`, `gpt-5.2`, `gpt-5.1`, `gpt-5`, `gpt-5-mini`, `gpt-5-nano`, `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1-nano`, `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo`, `gpt-4`, `gpt-3.5-turbo`, `o3`, `o3-mini`, `o4-mini` |
+| **Anthropic** | `claude-opus-4-7` (1M ctx, 2026-04-16), `claude-opus-4-6`, `claude-sonnet-4-6`, `claude-haiku-4-5`, `claude-opus-4-5`, `claude-sonnet-4-5`, `claude-3.5-sonnet`, `claude-3.5-haiku` |
+| **Google** | `gemini-3.1-pro` (2M ctx), `gemini-3-pro`, `gemini-3-flash`, `gemini-3.1-flash-lite`, `gemini-2.5-pro`, `gemini-2.5-flash`, `gemini-2.5-flash-lite` |
+| **Meta** | `llama-4-scout` (**10M ctx**), `llama-4-maverick` (1M ctx), `llama-3.3-70b`, `llama-3.1-70b`, `llama-3.1-405b` |
+| **Mistral** | `mistral-large-3`, `mistral-medium-3`, `mistral-small-4` (unified: reasoning + multimodal + coding), `mistral-small-3.1`, `magistral-medium`, `magistral-small-1.2`, `codestral`, `mistral-nemo` |
+| **xAI** | `grok-4`, `grok-4.1-fast` (2M ctx), `grok-4.2` (beta), `grok-3` |
+| **DeepSeek** | `deepseek-v3.2`, `deepseek-r1`, `deepseek-r2` |
+| **Alibaba** | `qwen3-max` (262K ctx), `qwen3.5-plus` (1M ctx), `qwen3` |
+| **Cohere** | `command-a`, `command-r-plus`, `command-r`, `command-r7b` (cheapest premium at **$0.0375/MTok**) |
+| **AWS** | `nova-pro`, `nova-lite`, `nova-micro` |
 
-Short aliases (`gpt`, `claude`, `gemini`, `llama`, `mistral`, `grok`, `deepseek`, `qwen`, `command`, `nova`) resolve to sensible defaults — see `tokcount --list-models` for the full table.
+**Short aliases**: `gpt`→gpt-5.4, `claude`→claude-sonnet-4-6, `opus`→claude-opus-4-7, `gemini`→gemini-3-flash, `gemini-pro`→gemini-3.1-pro, `llama`→llama-4-maverick, `mistral`→mistral-large-3, `grok`→grok-4, `deepseek`→deepseek-v3.2, `reasoning`→o3. See `tokcount --list-models` for the full table, or filter with `--tag reasoning` / `--provider anthropic`.
+
+### What changed in this release (2.1.0)
+
+- Pricing refreshed against every provider's April 2026 pricing page.
+- **Added** GPT-5.4 family (flagship $2.50/$15), Claude Opus 4.7 with 1M context (2026-04-16 release), Gemini 3.1 Pro with 2M context, Llama 4 Scout with 10M context, Grok 4.1 Fast with 2M context at $0.20/$0.50, Mistral Small 4 (unified reasoning/multimodal/coding), Magistral Medium/Small reasoning tier, DeepSeek V3.2 + R2, Cohere R7B at $0.0375/MTok, Qwen3 Max.
+- **Retired** `o1`, `o1-mini` (replaced by `o3` at 87% price cut), `claude-3-opus/sonnet/haiku` (deprecated by 4.x line), `gemini-1.5-*` and `gemini-2.0-flash` (legacy/paid-only April 1st 2026).
+- **New flags**: `--tag <tag>` and `--provider <p>` for both `--list-models` and `--compare`, so `tokcount --compare --tag reasoning --cost` shows just the reasoning tier, sorted by price.
+- **New tags** on every model entry: `flagship`, `reasoning`, `coding`, `multimodal`, `long-context`, `cheap`, `legacy`, `beta`.
 
 ## Accuracy
 

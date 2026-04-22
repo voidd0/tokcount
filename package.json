@@ -1,7 +1,7 @@
 {
   "name": "@v0idd0/tokcount",
-  "version": "2.0.0",
-  "description": "Count LLM tokens and estimate cost across 50+ models — GPT-5, Claude 4, Gemini 2.5, Grok 4, DeepSeek, Llama 3.3, Mistral, Qwen, Cohere, Nova. Runs locally, no API keys, no telemetry. Free forever from vøiddo.",
+  "version": "2.1.0",
+  "description": "Count LLM tokens and estimate cost across 60+ models. 2026-04 snapshot: GPT-5.4, Claude Opus 4.7, Gemini 3.1 Pro, Grok 4.1 Fast, Llama 4 Scout (10M ctx), Mistral Large 3, Magistral, DeepSeek V3.2/R2, Qwen3 Max, Cohere Command A/R7B, Nova. Tag-filter for reasoning/cheap/flagship. No API keys, no telemetry. Free forever from vøiddo.",
   "main": "src/counter.js",
   "bin": {
     "tokcount": "./bin/tokcount.js"

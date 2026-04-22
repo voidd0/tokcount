@@ -19,7 +19,7 @@ const reset = '\x1b[0m';
 function parseArgs(args) {
   const options = {
     files: [],
-    model: 'gpt-4o',
+    model: 'gpt-5.4',
     limit: null,
     breakdown: false,
     compare: false,
@@ -31,6 +31,8 @@ function parseArgs(args) {
     outputTokens: 0,
     listModels: false,
     noColor: false,
+    tag: null,
+    provider: null,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -48,6 +50,8 @@ function parseArgs(args) {
     else if (arg === '--output-tokens' || arg === '-o') options.outputTokens = parseInt(args[++i]) || 0;
     else if (arg === '--list-models' || arg === '--models') options.listModels = true;
     else if (arg === '--no-color') options.noColor = true;
+    else if (arg === '--tag') options.tag = args[++i];
+    else if (arg === '--provider') options.provider = args[++i];
     else if (!arg.startsWith('-')) options.files.push(arg);
   }
 
@@ -70,12 +74,16 @@ function showHelp() {
     cat file.md | tokcount --model claude
 
   ${dim}Options:${reset}
-    -m, --model <model>        Model key or alias (default: gpt-4o)
+    -m, --model <model>        Model key or alias (default: gpt-5.4)
     -l, --limit <n>            Override the model's context limit
     -o, --output-tokens <n>    Expected output tokens (for cost math)
     -c, --compare              Compare across every supported model
     -b, --breakdown            Per-file token breakdown
         --cost                 Show USD cost estimate
+        --tag <tag>            Filter by tag: reasoning, flagship, cheap,
+                               coding, multimodal, long-context, legacy
+        --provider <p>         Filter by provider: openai, anthropic, google,
+                               meta, xai, mistral, deepseek, alibaba, cohere, amazon
         --json                 Emit JSON
         --csv                  Emit CSV
         --list-models          Print every supported model + pricing
@@ -83,22 +91,26 @@ function showHelp() {
     -h, --help                 Show this help
     -V, --version              Show version
 
-  ${dim}Models (short aliases):${reset}
-    gpt, gpt-4, gpt-4o, gpt-4.1, gpt-5, o1, o3, o4-mini
-    claude, claude-opus, claude-sonnet, claude-haiku, claude-4
-    gemini, gemini-flash, gemini-pro, gemini-lite
-    llama, llama-3.1, mistral, grok, deepseek, qwen, command, nova
+  ${dim}Models (short aliases, 2026-04 snapshot):${reset}
+    gpt, gpt-5.4, gpt-5, gpt-4.1, gpt-4o, o3, o4-mini, reasoning
+    claude, opus, sonnet, haiku, claude-4.7, claude-4.6
+    gemini, gemini-pro, gemini-flash, gemini-lite, gemini-3
+    llama, scout, maverick, mistral, magistral, codestral
+    grok, grok-4.1-fast, deepseek, qwen, command, nova
     (use --list-models for the full table, including pricing)
 
   ${dim}Examples:${reset}
     tokcount README.md
     tokcount src/ --breakdown
-    tokcount prompt.md --model claude-sonnet-4-6 --cost
-    tokcount huge.txt --limit 200000
+    tokcount prompt.md --model claude-opus-4-7 --cost
+    tokcount huge.txt --limit 1000000
     tokcount big.md --compare --cost
-    tokcount essay.txt --model gpt-4o --output-tokens 2000 --cost
+    tokcount essay.txt --model gpt-5.4 --output-tokens 2000 --cost
+    tokcount prompt.md --compare --tag reasoning --cost
+    tokcount prompt.md --compare --provider anthropic
+    tokcount --list-models --tag flagship
+    tokcount --list-models --provider google
     echo "how much is this?" | tokcount --model claude --cost
-    tokcount --list-models
 
   ${dim}Docs:   ${reset} https://voiddo.com/tools/tokcount/
   ${dim}Issues: ${reset} https://github.com/voidd0/tokcount/issues
@@ -125,45 +137,58 @@ function colorize(enabled, code, text) {
 
 function printListModels(options) {
   const useColor = !options.noColor;
-  const rows = counter.listModels();
+  const filter = {};
+  if (options.tag) filter.tag = options.tag.toLowerCase();
+  if (options.provider) filter.provider = options.provider.toLowerCase();
+  const rows = counter.listModels(Object.keys(filter).length ? filter : null);
 
   if (options.json) {
     console.log(JSON.stringify(rows, null, 2));
     return;
   }
   if (options.csv) {
-    console.log('model,provider,context_tokens,input_usd_per_mtok,output_usd_per_mtok');
+    console.log('model,provider,context_tokens,input_usd_per_mtok,output_usd_per_mtok,tags');
     for (const r of rows) {
-      console.log(`${r.model},${r.provider},${r.limit},${r.input},${r.output}`);
+      console.log(`${r.model},${r.provider},${r.limit},${r.input},${r.output},"${(r.tags || []).join('|')}"`);
     }
     return;
   }
 
   console.log('');
-  console.log('  ' + colorize(useColor, bold + magenta, 'tokcount') + colorize(useColor, dim, '  — supported models') + '');
-  console.log('  ' + colorize(useColor, dim, '─'.repeat(76)));
+  console.log('  ' + colorize(useColor, bold + magenta, 'tokcount') + colorize(useColor, dim, '  — supported models'));
+  if (filter.tag || filter.provider) {
+    const bits = [filter.tag && `tag=${filter.tag}`, filter.provider && `provider=${filter.provider}`].filter(Boolean).join('  ');
+    console.log('  ' + colorize(useColor, dim, `  filter: ${bits}  ·  ${rows.length} match(es)`));
+  }
+  console.log('  ' + colorize(useColor, dim, '─'.repeat(96)));
   const header = '  ' +
-    'MODEL'.padEnd(22) +
-    'PROVIDER'.padEnd(12) +
+    'MODEL'.padEnd(24) +
+    'PROVIDER'.padEnd(11) +
     'CONTEXT'.padStart(12) +
-    '  INPUT $/MTok'.padStart(16) +
-    '  OUTPUT $/MTok'.padStart(16);
+    '   INPUT $/MTok'.padStart(16) +
+    '   OUTPUT $/MTok'.padStart(16) +
+    '   TAGS';
   console.log(colorize(useColor, dim, header));
-  console.log('  ' + colorize(useColor, dim, '─'.repeat(76)));
+  console.log('  ' + colorize(useColor, dim, '─'.repeat(96)));
 
   for (const r of rows) {
     const line =
       '  ' +
-      colorize(useColor, cyan, r.model.padEnd(22)) +
-      r.provider.padEnd(12) +
+      colorize(useColor, cyan, r.model.padEnd(24)) +
+      r.provider.padEnd(11) +
       formatNumber(r.limit).padStart(12) +
-      ('  ' + (r.input ? r.input.toFixed(4) : '—')).padStart(16) +
-      ('  ' + (r.output ? r.output.toFixed(4) : '—')).padStart(16);
+      ('   ' + (r.input ? r.input.toFixed(4) : '—')).padStart(16) +
+      ('   ' + (r.output ? r.output.toFixed(4) : '—')).padStart(16) +
+      '   ' + colorize(useColor, dim, (r.tags || []).join(', '));
     console.log(line);
   }
 
+  if (rows.length === 0) {
+    console.log('  ' + colorize(useColor, red, 'no models match that filter'));
+  }
+
   console.log('');
-  console.log('  ' + colorize(useColor, dim, 'Prices are a 2026-04 snapshot. Providers change prices — check the vendor.'));
+  console.log('  ' + colorize(useColor, dim, 'Prices are a 2026-04-22 snapshot. Providers change prices — check the vendor.'));
   console.log('');
 }
 
@@ -258,7 +283,10 @@ function printBreakdown(result, options) {
 
 function printCompare(text, options) {
   const useColor = !options.noColor;
-  const results = counter.compareModels(text, options.outputTokens || 0);
+  const filter = {};
+  if (options.tag) filter.tag = options.tag.toLowerCase();
+  if (options.provider) filter.provider = options.provider.toLowerCase();
+  const results = counter.compareModels(text, options.outputTokens || 0, Object.keys(filter).length ? filter : null);
 
   if (options.json) {
     console.log(JSON.stringify(results, null, 2));

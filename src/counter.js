@@ -4,130 +4,199 @@
 const fs = require('fs');
 const path = require('path');
 
-// Pricing snapshot 2026-04. Prices drift monthly — check the provider's
-// pricing page for the latest. input/output are USD per 1,000,000 tokens.
-// `ratio` is chars-per-token used for the approximate counter.
-// `limit` is the model's context window in tokens.
+// Pricing snapshot 2026-04-22. Verified against provider docs and public
+// pricing pages the day tokcount 2.1 shipped. Prices drift monthly — check
+// the provider's pricing page for the latest if you need exact billing.
 //
-// Aliases handled by the resolver below so users can pass short names
-// like "gpt-4", "claude", "gemini" and hit a sensible default.
+// `input` / `output` are USD per 1,000,000 tokens.
+// `ratio` is chars-per-token used by the approximate counter.
+// `limit` is the model's context window in tokens.
+// `tags`  lightweight classification (`chat`, `reasoning`, `coding`,
+//         `multimodal`, `cheap`, `flagship`, `legacy`).
+//
+// Short aliases (e.g. "claude", "gpt", "gemini") resolve through the
+// ALIASES table below so users do not need to memorize exact names.
 const MODELS = {
-  // OpenAI — GPT family
-  'gpt-3.5-turbo':      { ratio: 4.0, limit:   16385, input:  0.50, output:  1.50, provider: 'openai' },
-  'gpt-4':              { ratio: 4.0, limit:    8192, input: 30.00, output: 60.00, provider: 'openai' },
-  'gpt-4-turbo':        { ratio: 4.0, limit:  128000, input: 10.00, output: 30.00, provider: 'openai' },
-  'gpt-4o':             { ratio: 4.0, limit:  128000, input:  2.50, output: 10.00, provider: 'openai' },
-  'gpt-4o-mini':        { ratio: 4.0, limit:  128000, input:  0.15, output:  0.60, provider: 'openai' },
-  'gpt-4.1':            { ratio: 4.0, limit: 1000000, input:  2.00, output:  8.00, provider: 'openai' },
-  'gpt-4.1-mini':       { ratio: 4.0, limit: 1000000, input:  0.40, output:  1.60, provider: 'openai' },
-  'gpt-4.1-nano':       { ratio: 4.0, limit: 1000000, input:  0.10, output:  0.40, provider: 'openai' },
-  'gpt-5':              { ratio: 4.0, limit:  400000, input:  1.25, output: 10.00, provider: 'openai' },
-  'gpt-5-mini':         { ratio: 4.0, limit:  400000, input:  0.25, output:  2.00, provider: 'openai' },
-  'gpt-5-nano':         { ratio: 4.0, limit:  400000, input:  0.05, output:  0.40, provider: 'openai' },
-  'o1':                 { ratio: 4.0, limit:  200000, input: 15.00, output: 60.00, provider: 'openai' },
-  'o1-mini':            { ratio: 4.0, limit:  128000, input:  3.00, output: 12.00, provider: 'openai' },
-  'o3':                 { ratio: 4.0, limit:  200000, input:  2.00, output:  8.00, provider: 'openai' },
-  'o3-mini':            { ratio: 4.0, limit:  200000, input:  1.10, output:  4.40, provider: 'openai' },
-  'o4-mini':            { ratio: 4.0, limit:  200000, input:  1.10, output:  4.40, provider: 'openai' },
+  // ─── OpenAI ──────────────────────────────────────────────────────────────
+  // GPT-5.4 — current flagship family (2026-03 release)
+  'gpt-5.4':            { ratio: 4.0, limit:  400000, input:  2.50, output: 15.00, provider: 'openai', tags: ['chat', 'flagship'] },
+  'gpt-5.4-mini':       { ratio: 4.0, limit:  400000, input:  0.75, output:  4.50, provider: 'openai', tags: ['chat'] },
+  'gpt-5.4-nano':       { ratio: 4.0, limit:  400000, input:  0.20, output:  1.25, provider: 'openai', tags: ['chat', 'cheap'] },
+  // GPT-5 family (2025, still supported; GPT-5.2 Instant used by ChatGPT Go)
+  'gpt-5.2':            { ratio: 4.0, limit:  400000, input:  1.25, output: 10.00, provider: 'openai', tags: ['chat'] },
+  'gpt-5.1':            { ratio: 4.0, limit:  400000, input:  1.25, output: 10.00, provider: 'openai', tags: ['chat'] },
+  'gpt-5':              { ratio: 4.0, limit:  400000, input:  1.25, output: 10.00, provider: 'openai', tags: ['chat'] },
+  'gpt-5-mini':         { ratio: 4.0, limit:  400000, input:  0.25, output:  2.00, provider: 'openai', tags: ['chat'] },
+  'gpt-5-nano':         { ratio: 4.0, limit:  400000, input:  0.05, output:  0.40, provider: 'openai', tags: ['chat', 'cheap'] },
+  // GPT-4.1 family — 1M-token long-context
+  'gpt-4.1':            { ratio: 4.0, limit: 1000000, input:  2.00, output:  8.00, provider: 'openai', tags: ['chat', 'long-context'] },
+  'gpt-4.1-mini':       { ratio: 4.0, limit: 1000000, input:  0.40, output:  1.60, provider: 'openai', tags: ['chat', 'long-context'] },
+  'gpt-4.1-nano':       { ratio: 4.0, limit: 1000000, input:  0.10, output:  0.40, provider: 'openai', tags: ['chat', 'cheap', 'long-context'] },
+  // GPT-4 / 4o legacy
+  'gpt-4o':             { ratio: 4.0, limit:  128000, input:  2.50, output: 10.00, provider: 'openai', tags: ['chat', 'multimodal', 'legacy'] },
+  'gpt-4o-mini':        { ratio: 4.0, limit:  128000, input:  0.15, output:  0.60, provider: 'openai', tags: ['chat', 'cheap', 'legacy'] },
+  'gpt-4-turbo':        { ratio: 4.0, limit:  128000, input: 10.00, output: 30.00, provider: 'openai', tags: ['chat', 'legacy'] },
+  'gpt-4':              { ratio: 4.0, limit:    8192, input: 30.00, output: 60.00, provider: 'openai', tags: ['chat', 'legacy'] },
+  'gpt-3.5-turbo':      { ratio: 4.0, limit:   16385, input:  0.50, output:  1.50, provider: 'openai', tags: ['chat', 'cheap', 'legacy'] },
+  // o-series reasoning (o1 retired; o3 at 87% price cut replaced it)
+  'o3':                 { ratio: 4.0, limit:  200000, input:  2.00, output:  8.00, provider: 'openai', tags: ['reasoning', 'flagship'] },
+  'o3-mini':            { ratio: 4.0, limit:  200000, input:  1.10, output:  4.40, provider: 'openai', tags: ['reasoning'] },
+  'o4-mini':            { ratio: 4.0, limit:  200000, input:  1.10, output:  4.40, provider: 'openai', tags: ['reasoning'] },
 
-  // Anthropic — Claude family
-  'claude-3-haiku':     { ratio: 3.5, limit:  200000, input:  0.25, output:  1.25, provider: 'anthropic' },
-  'claude-3-sonnet':    { ratio: 3.5, limit:  200000, input:  3.00, output: 15.00, provider: 'anthropic' },
-  'claude-3-opus':      { ratio: 3.5, limit:  200000, input: 15.00, output: 75.00, provider: 'anthropic' },
-  'claude-3.5-haiku':   { ratio: 3.5, limit:  200000, input:  0.80, output:  4.00, provider: 'anthropic' },
-  'claude-3.5-sonnet':  { ratio: 3.5, limit:  200000, input:  3.00, output: 15.00, provider: 'anthropic' },
-  'claude-3.7-sonnet':  { ratio: 3.5, limit:  200000, input:  3.00, output: 15.00, provider: 'anthropic' },
-  'claude-haiku-4-5':   { ratio: 3.5, limit:  200000, input:  1.00, output:  5.00, provider: 'anthropic' },
-  'claude-sonnet-4':    { ratio: 3.5, limit:  200000, input:  3.00, output: 15.00, provider: 'anthropic' },
-  'claude-sonnet-4-6':  { ratio: 3.5, limit:  200000, input:  3.00, output: 15.00, provider: 'anthropic' },
-  'claude-opus-4':      { ratio: 3.5, limit:  200000, input: 15.00, output: 75.00, provider: 'anthropic' },
-  'claude-opus-4-7':    { ratio: 3.5, limit: 1000000, input: 15.00, output: 75.00, provider: 'anthropic' },
+  // ─── Anthropic ───────────────────────────────────────────────────────────
+  // Claude 4.7 (Opus only so far, 2026-04-16); 4.6 Opus/Sonnet/Haiku current tier
+  'claude-opus-4-7':    { ratio: 3.5, limit: 1000000, input:  5.00, output: 25.00, provider: 'anthropic', tags: ['chat', 'flagship', 'long-context'] },
+  'claude-opus-4-6':    { ratio: 3.5, limit:  200000, input:  5.00, output: 25.00, provider: 'anthropic', tags: ['chat', 'flagship'] },
+  'claude-sonnet-4-6':  { ratio: 3.5, limit:  200000, input:  3.00, output: 15.00, provider: 'anthropic', tags: ['chat'] },
+  'claude-haiku-4-5':   { ratio: 3.5, limit:  200000, input:  1.00, output:  5.00, provider: 'anthropic', tags: ['chat', 'cheap'] },
+  // Earlier 4.x still callable
+  'claude-sonnet-4-5':  { ratio: 3.5, limit:  200000, input:  3.00, output: 15.00, provider: 'anthropic', tags: ['chat', 'legacy'] },
+  'claude-opus-4-5':    { ratio: 3.5, limit:  200000, input:  5.00, output: 25.00, provider: 'anthropic', tags: ['chat', 'legacy'] },
+  // Claude 3.5 — still widely deployed
+  'claude-3.5-sonnet':  { ratio: 3.5, limit:  200000, input:  3.00, output: 15.00, provider: 'anthropic', tags: ['chat', 'legacy'] },
+  'claude-3.5-haiku':   { ratio: 3.5, limit:  200000, input:  0.80, output:  4.00, provider: 'anthropic', tags: ['chat', 'legacy'] },
 
-  // Google — Gemini family
-  'gemini-1.5-flash':   { ratio: 4.0, limit: 1000000, input:  0.075, output:  0.30, provider: 'google' },
-  'gemini-1.5-pro':     { ratio: 4.0, limit: 2000000, input:  1.25, output:  5.00, provider: 'google' },
-  'gemini-2.0-flash':   { ratio: 4.0, limit: 1000000, input:  0.10, output:  0.40, provider: 'google' },
-  'gemini-2.5-flash-lite':{ratio: 4.0, limit: 1000000, input:  0.075, output:  0.30, provider: 'google' },
-  'gemini-2.5-flash':   { ratio: 4.0, limit: 1000000, input:  0.30, output:  2.50, provider: 'google' },
-  'gemini-2.5-pro':     { ratio: 4.0, limit: 2000000, input:  1.25, output: 10.00, provider: 'google' },
+  // ─── Google — Gemini ─────────────────────────────────────────────────────
+  // Gemini 3.x — current flagship (2026 release). Tiered: up to 200K vs above.
+  'gemini-3.1-pro':     { ratio: 4.0, limit: 2000000, input:  2.00, output: 12.00, provider: 'google', tags: ['chat', 'flagship', 'long-context', 'multimodal'] },
+  'gemini-3-pro':       { ratio: 4.0, limit: 2000000, input:  2.00, output: 12.00, provider: 'google', tags: ['chat', 'multimodal', 'long-context'] },
+  'gemini-3-flash':     { ratio: 4.0, limit: 1000000, input:  0.50, output:  3.00, provider: 'google', tags: ['chat', 'multimodal', 'long-context'] },
+  'gemini-3.1-flash-lite': { ratio: 4.0, limit: 1000000, input: 0.25, output:  1.50, provider: 'google', tags: ['chat', 'cheap', 'long-context'] },
+  // Gemini 2.5 — moved to legacy/paid-only 2026-04
+  'gemini-2.5-pro':     { ratio: 4.0, limit: 2000000, input:  1.25, output: 10.00, provider: 'google', tags: ['chat', 'legacy', 'long-context'] },
+  'gemini-2.5-flash':   { ratio: 4.0, limit: 1000000, input:  0.30, output:  2.50, provider: 'google', tags: ['chat', 'legacy', 'long-context'] },
+  'gemini-2.5-flash-lite':{ratio:4.0, limit: 1000000, input:  0.075,output:  0.30, provider: 'google', tags: ['chat', 'cheap', 'legacy'] },
 
-  // Mistral
-  'mistral-small':      { ratio: 4.0, limit:   32000, input:  0.20, output:  0.60, provider: 'mistral' },
-  'mistral-medium':     { ratio: 4.0, limit:   32000, input:  2.70, output:  8.10, provider: 'mistral' },
-  'mistral-large':      { ratio: 4.0, limit:  128000, input:  2.00, output:  6.00, provider: 'mistral' },
-  'mistral-nemo':       { ratio: 4.0, limit:  128000, input:  0.15, output:  0.15, provider: 'mistral' },
-  'codestral':          { ratio: 4.0, limit:   32000, input:  0.20, output:  0.60, provider: 'mistral' },
+  // ─── xAI — Grok ──────────────────────────────────────────────────────────
+  'grok-4':             { ratio: 4.0, limit:  256000, input:  3.00, output: 15.00, provider: 'xai', tags: ['chat', 'flagship'] },
+  'grok-4.1-fast':      { ratio: 4.0, limit: 2000000, input:  0.20, output:  0.50, provider: 'xai', tags: ['chat', 'cheap', 'long-context'] },
+  'grok-4.2':           { ratio: 4.0, limit:  256000, input:  3.00, output: 15.00, provider: 'xai', tags: ['chat', 'beta'] },
+  'grok-3':             { ratio: 4.0, limit:  131072, input:  3.00, output: 15.00, provider: 'xai', tags: ['chat', 'legacy'] },
 
-  // Meta — Llama family
-  'llama-3-8b':         { ratio: 4.0, limit:    8192, input:  0.10, output:  0.10, provider: 'meta' },
-  'llama-3-70b':        { ratio: 4.0, limit:    8192, input:  0.60, output:  0.60, provider: 'meta' },
-  'llama-3.1-8b':       { ratio: 4.0, limit:  128000, input:  0.05, output:  0.05, provider: 'meta' },
-  'llama-3.1-70b':      { ratio: 4.0, limit:  128000, input:  0.40, output:  0.40, provider: 'meta' },
-  'llama-3.1-405b':     { ratio: 4.0, limit:  128000, input:  3.50, output:  3.50, provider: 'meta' },
-  'llama-3.3-70b':      { ratio: 4.0, limit:  128000, input:  0.40, output:  0.40, provider: 'meta' },
+  // ─── DeepSeek ────────────────────────────────────────────────────────────
+  'deepseek-v3.2':      { ratio: 4.0, limit:  128000, input:  0.28, output:  0.42, provider: 'deepseek', tags: ['chat', 'cheap'] },
+  'deepseek-r1':        { ratio: 4.0, limit:   65536, input:  0.70, output:  2.50, provider: 'deepseek', tags: ['reasoning'] },
+  'deepseek-r2':        { ratio: 4.0, limit:  128000, input:  0.70, output:  2.50, provider: 'deepseek', tags: ['reasoning'] },
 
-  // xAI — Grok
-  'grok-2':             { ratio: 4.0, limit:  128000, input:  2.00, output: 10.00, provider: 'xai' },
-  'grok-3':             { ratio: 4.0, limit:  131072, input:  3.00, output: 15.00, provider: 'xai' },
-  'grok-4':             { ratio: 4.0, limit:  256000, input:  5.00, output: 15.00, provider: 'xai' },
+  // ─── Meta — Llama 4 ──────────────────────────────────────────────────────
+  'llama-4-scout':      { ratio: 4.0, limit:10000000, input:  0.15, output:  0.60, provider: 'meta', tags: ['chat', 'multimodal', 'long-context'] },
+  'llama-4-maverick':   { ratio: 4.0, limit: 1000000, input:  0.15, output:  0.60, provider: 'meta', tags: ['chat', 'multimodal', 'long-context'] },
+  'llama-3.3-70b':      { ratio: 4.0, limit:  128000, input:  0.40, output:  0.40, provider: 'meta', tags: ['chat', 'legacy'] },
+  'llama-3.1-70b':      { ratio: 4.0, limit:  128000, input:  0.40, output:  0.40, provider: 'meta', tags: ['chat', 'legacy'] },
+  'llama-3.1-405b':     { ratio: 4.0, limit:  128000, input:  3.50, output:  3.50, provider: 'meta', tags: ['chat', 'legacy'] },
 
-  // DeepSeek
-  'deepseek-v3':        { ratio: 4.0, limit:   65536, input:  0.27, output:  1.10, provider: 'deepseek' },
-  'deepseek-r1':        { ratio: 4.0, limit:   65536, input:  0.55, output:  2.19, provider: 'deepseek' },
+  // ─── Mistral ─────────────────────────────────────────────────────────────
+  'mistral-large-3':    { ratio: 4.0, limit:  128000, input:  2.00, output:  6.00, provider: 'mistral', tags: ['chat', 'flagship'] },
+  'mistral-medium-3':   { ratio: 4.0, limit:  128000, input:  1.00, output:  3.00, provider: 'mistral', tags: ['chat'] },
+  'mistral-small-4':    { ratio: 4.0, limit:  128000, input:  0.15, output:  0.60, provider: 'mistral', tags: ['chat', 'reasoning', 'coding', 'multimodal', 'cheap'] },
+  'mistral-small-3.1':  { ratio: 4.0, limit:  128000, input:  0.20, output:  0.60, provider: 'mistral', tags: ['chat', 'legacy'] },
+  'magistral-medium':   { ratio: 4.0, limit:   40000, input:  2.00, output:  5.00, provider: 'mistral', tags: ['reasoning'] },
+  'magistral-small-1.2':{ ratio: 4.0, limit:   40000, input:  0.50, output:  1.50, provider: 'mistral', tags: ['reasoning', 'cheap'] },
+  'codestral':          { ratio: 4.0, limit:   32000, input:  0.20, output:  0.60, provider: 'mistral', tags: ['coding', 'cheap'] },
+  'mistral-nemo':       { ratio: 4.0, limit:  128000, input:  0.02, output:  0.04, provider: 'mistral', tags: ['chat', 'cheap'] },
 
-  // Alibaba — Qwen
-  'qwen-2.5':           { ratio: 4.0, limit:  131072, input:  0.40, output:  1.20, provider: 'alibaba' },
-  'qwen-3':             { ratio: 4.0, limit:  131072, input:  0.50, output:  1.50, provider: 'alibaba' },
+  // ─── Alibaba — Qwen 3 ────────────────────────────────────────────────────
+  'qwen3-max':          { ratio: 4.0, limit:  262000, input:  0.78, output:  3.90, provider: 'alibaba', tags: ['chat', 'flagship'] },
+  'qwen3.5-plus':       { ratio: 4.0, limit: 1000000, input:  0.26, output:  1.56, provider: 'alibaba', tags: ['chat', 'long-context', 'cheap'] },
+  'qwen3':              { ratio: 4.0, limit:  131072, input:  0.50, output:  1.50, provider: 'alibaba', tags: ['chat'] },
 
-  // Cohere
-  'command-r':          { ratio: 4.0, limit:  128000, input:  0.15, output:  0.60, provider: 'cohere' },
-  'command-r-plus':     { ratio: 4.0, limit:  128000, input:  2.50, output: 10.00, provider: 'cohere' },
+  // ─── Cohere ──────────────────────────────────────────────────────────────
+  'command-a':          { ratio: 4.0, limit:  256000, input:  2.50, output: 10.00, provider: 'cohere', tags: ['chat', 'flagship'] },
+  'command-r-plus':     { ratio: 4.0, limit:  128000, input:  2.50, output: 10.00, provider: 'cohere', tags: ['chat'] },
+  'command-r':          { ratio: 4.0, limit:  128000, input:  0.15, output:  0.60, provider: 'cohere', tags: ['chat', 'cheap'] },
+  'command-r7b':        { ratio: 4.0, limit:  128000, input:  0.0375,output: 0.15, provider: 'cohere', tags: ['chat', 'cheap'] },
 
-  // AWS — Nova
-  'nova-micro':         { ratio: 4.0, limit:  128000, input:  0.035, output: 0.14, provider: 'amazon' },
-  'nova-lite':          { ratio: 4.0, limit:  300000, input:  0.06, output:  0.24, provider: 'amazon' },
-  'nova-pro':           { ratio: 4.0, limit:  300000, input:  0.80, output:  3.20, provider: 'amazon' },
+  // ─── AWS — Nova ──────────────────────────────────────────────────────────
+  'nova-pro':           { ratio: 4.0, limit:  300000, input:  0.80, output:  3.20, provider: 'amazon', tags: ['chat', 'multimodal'] },
+  'nova-lite':          { ratio: 4.0, limit:  300000, input:  0.06, output:  0.24, provider: 'amazon', tags: ['chat', 'cheap', 'multimodal'] },
+  'nova-micro':         { ratio: 4.0, limit:  128000, input:  0.035,output:  0.14, provider: 'amazon', tags: ['chat', 'cheap'] },
 
-  // Fallback
-  'default':            { ratio: 4.0, limit:    4096, input:  0,    output:  0,    provider: 'unknown' },
+  // Fallback — used when an unknown model name is passed.
+  'default':            { ratio: 4.0, limit:    4096, input:  0,    output:  0,    provider: 'unknown', tags: ['fallback'] },
 };
 
-// Short aliases → canonical model keys.
+// Short aliases → canonical model keys. Resolver below is case-insensitive.
 const ALIASES = {
-  'gpt':                'gpt-4o',
-  'gpt-3':              'gpt-3.5-turbo',
-  'gpt-3.5':            'gpt-3.5-turbo',
-  'gpt4':               'gpt-4',
-  'gpt-4.5':            'gpt-4.1',
-  'openai':             'gpt-4o',
-  'claude':             'claude-sonnet-4-6',
-  'claude-instant':     'claude-3-haiku',
-  'claude-3':           'claude-3-sonnet',
-  'claude-3.5':         'claude-3.5-sonnet',
-  'claude-4':           'claude-sonnet-4-6',
-  'claude-opus':        'claude-opus-4-7',
-  'claude-sonnet':      'claude-sonnet-4-6',
-  'claude-haiku':       'claude-haiku-4-5',
-  'anthropic':          'claude-sonnet-4-6',
-  'gemini':             'gemini-2.5-flash',
-  'gemini-pro':         'gemini-2.5-pro',
-  'gemini-flash':       'gemini-2.5-flash',
-  'gemini-lite':        'gemini-2.5-flash-lite',
-  'google':             'gemini-2.5-flash',
-  'llama':              'llama-3.3-70b',
-  'llama-3':            'llama-3-70b',
-  'llama-3.1':          'llama-3.1-70b',
-  'meta':               'llama-3.3-70b',
-  'mistral':            'mistral-large',
-  'grok':               'grok-4',
-  'xai':                'grok-4',
-  'deepseek':           'deepseek-v3',
-  'qwen':               'qwen-3',
-  'cohere':             'command-r-plus',
-  'command':            'command-r-plus',
-  'nova':               'nova-pro',
-  'amazon':             'nova-pro',
-  'aws':                'nova-pro',
+  // OpenAI
+  'gpt':            'gpt-5.4',
+  'openai':         'gpt-5.4',
+  'gpt-5.4-preview':'gpt-5.4',
+  'gpt-4':          'gpt-4',
+  'gpt-4.5':        'gpt-4.1',
+  'gpt-3':          'gpt-3.5-turbo',
+  'gpt-3.5':        'gpt-3.5-turbo',
+  'gpt4o':          'gpt-4o',
+  'chatgpt':        'gpt-5.4',
+  'o1':             'o3',          // o1 retired; o3 replaces it
+  'o1-mini':        'o3-mini',
+  'reasoning':      'o3',
+
+  // Anthropic
+  'claude':         'claude-sonnet-4-6',
+  'claude-opus':    'claude-opus-4-7',
+  'claude-sonnet':  'claude-sonnet-4-6',
+  'claude-haiku':   'claude-haiku-4-5',
+  'claude-4':       'claude-sonnet-4-6',
+  'claude-4.6':     'claude-sonnet-4-6',
+  'claude-4.7':     'claude-opus-4-7',
+  'claude-3':       'claude-3.5-sonnet',
+  'claude-3.5':     'claude-3.5-sonnet',
+  'anthropic':      'claude-sonnet-4-6',
+  'opus':           'claude-opus-4-7',
+  'sonnet':         'claude-sonnet-4-6',
+  'haiku':          'claude-haiku-4-5',
+
+  // Google Gemini
+  'gemini':         'gemini-3-flash',
+  'gemini-pro':     'gemini-3.1-pro',
+  'gemini-flash':   'gemini-3-flash',
+  'gemini-lite':    'gemini-3.1-flash-lite',
+  'gemini-3':       'gemini-3-pro',
+  'gemini-2.5':     'gemini-2.5-pro',
+  'google':         'gemini-3-flash',
+  'bard':           'gemini-3-flash',
+
+  // Meta
+  'llama':          'llama-4-maverick',
+  'llama-4':        'llama-4-maverick',
+  'llama-3':        'llama-3.3-70b',
+  'llama-3.3':      'llama-3.3-70b',
+  'llama-3.1':      'llama-3.1-70b',
+  'meta':           'llama-4-maverick',
+  'scout':          'llama-4-scout',
+  'maverick':       'llama-4-maverick',
+
+  // xAI
+  'grok':           'grok-4',
+  'xai':            'grok-4',
+  'grok-4-fast':    'grok-4.1-fast',
+
+  // Mistral
+  'mistral':        'mistral-large-3',
+  'mistral-large':  'mistral-large-3',
+  'mistral-medium': 'mistral-medium-3',
+  'mistral-small':  'mistral-small-4',
+  'magistral':      'magistral-medium',
+
+  // DeepSeek
+  'deepseek':       'deepseek-v3.2',
+  'deepseek-v3':    'deepseek-v3.2',
+  'deepseek-chat':  'deepseek-v3.2',
+  'deepseek-reasoner': 'deepseek-r2',
+
+  // Alibaba
+  'qwen':           'qwen3-max',
+  'qwen3':          'qwen3',
+  'qwen-3':         'qwen3',
+
+  // Cohere
+  'cohere':         'command-a',
+  'command':        'command-a',
+
+  // AWS
+  'nova':           'nova-pro',
+  'amazon':         'nova-pro',
+  'aws':            'nova-pro',
 };
 
 function resolveModel(model) {
@@ -323,12 +392,15 @@ function getModelLimits(model) {
   return getModelConfig(model).limit;
 }
 
-function compareModels(text, outputTokens = 0) {
+function compareModels(text, outputTokens = 0, filter = null) {
   const results = {};
 
   for (const key of Object.keys(MODELS)) {
     if (key === 'default') continue;
     const config = MODELS[key];
+    if (filter && filter.tag && !(config.tags || []).includes(filter.tag)) continue;
+    if (filter && filter.provider && config.provider !== filter.provider) continue;
+
     const tokens = countTokens(text, key);
     const cost = estimateCost(tokens, outputTokens, key);
     results[key] = {
@@ -338,6 +410,7 @@ function compareModels(text, outputTokens = 0) {
       provider: config.provider,
       input: config.input,
       output: config.output,
+      tags: config.tags || [],
       cost: cost.totalCost,
     };
   }
@@ -349,15 +422,18 @@ function getAllModels() {
   return Object.keys(MODELS).filter((m) => m !== 'default');
 }
 
-function listModels() {
+function listModels(filter = null) {
   return Object.entries(MODELS)
     .filter(([k]) => k !== 'default')
+    .filter(([, v]) => !filter || !filter.tag || (v.tags || []).includes(filter.tag))
+    .filter(([, v]) => !filter || !filter.provider || v.provider === filter.provider)
     .map(([k, v]) => ({
       model: k,
       provider: v.provider,
       limit: v.limit,
       input: v.input,
       output: v.output,
+      tags: v.tags || [],
     }));
 }
 
@@ -375,6 +451,6 @@ module.exports = {
   getModelConfig,
   MODELS,
   ALIASES,
-  // Back-compat: some callers may import TOKENIZERS.
+  // Back-compat export — some callers may import TOKENIZERS.
   TOKENIZERS: MODELS,
 };
