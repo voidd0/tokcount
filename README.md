@@ -12,6 +12,19 @@
 
 ---
 
+## Browser extension
+
+tokcount ships as a **free browser extension** for Chrome, Firefox, and Edge. It overlays a live token counter directly on the ChatGPT, Claude, and Gemini chat UIs — no copy-paste, no tab-switch.
+
+| Browser | Install |
+|---------|---------|
+| Chrome / Brave / Opera | [Chrome Web Store →](https://chromewebstore.google.com/detail/tokcount-%E2%80%94-live-token-cos/pkpdcbmcopflnbealamhephpoeimnogd) |
+| Firefox / LibreWolf | [Firefox Add-ons →](https://addons.mozilla.org/en-US/firefox/addon/tokcount-live-token-cost-4-ai/) |
+| Microsoft Edge | [Edge Add-ons →](https://microsoftedge.microsoft.com/addons/detail/pnbfdjaampealnhgocojhnbjenbfklpo) |
+
+> No account. No API key. Installs in 10 seconds. Free forever.
+> Full landing page: **[extensions.voiddo.com/tokcount/](https://extensions.voiddo.com/tokcount/)**
+
 ## Why tokcount
 
 Before you paste a prompt into an API, you want to know two things: **will it fit in the context window**, and **how much will it cost me**. Every online tokenizer asks for your prompt so it can log it. Every provider's pricing page is a different chart. Every CLI tokenizer knows about three models from 2023.
