@@ -1,29 +1,14 @@
 # tokcount
 
-> **Count LLM tokens and estimate cost across 50+ models. Locally. Free forever.**
-> A gift to the terminal from [**vøiddo**](https://voiddo.com).
-
+> **Count LLM tokens and estimate cost across 50+ models. Locally.**
 [![npm](https://img.shields.io/npm/v/@v0idd0/tokcount?color=%2322c55e&label=%40v0idd0%2Ftokcount)](https://www.npmjs.com/package/@v0idd0/tokcount)
 [![downloads](https://img.shields.io/npm/dm/@v0idd0/tokcount?color=%2322c55e)](https://www.npmjs.com/package/@v0idd0/tokcount)
 [![license](https://img.shields.io/npm/l/@v0idd0/tokcount?color=%2322c55e)](./LICENSE)
 [![node](https://img.shields.io/node/v/@v0idd0/tokcount?color=%2322c55e)](./package.json)
 
-**[Homepage](https://voiddo.com/tools/tokcount/)** · **[GitHub](https://github.com/voidd0/tokcount)** · **[npm](https://www.npmjs.com/package/@v0idd0/tokcount)** · **[All tools](https://voiddo.com/tools/)** · **[Contact](mailto:support@voiddo.com)**
+**[Homepage](https://extensions.voiddo.com/tokcount/?ref=tokcount-readme)** · **[GitHub](https://github.com/voidd0/tokcount)** · **[npm](https://www.npmjs.com/package/@v0idd0/tokcount)** · **[All tools](https://tools.voiddo.com/?ref=tokcount-catalog-readme)** · **[Contact](mailto:support@voiddo.com)**
 
 ---
-
-## Browser extension
-
-tokcount ships as a **free browser extension** for Chrome, Firefox, and Edge. It overlays a live token counter directly on the ChatGPT, Claude, and Gemini chat UIs — no copy-paste, no tab-switch.
-
-| Browser | Install |
-|---------|---------|
-| Chrome / Brave / Opera | [Chrome Web Store →](https://chromewebstore.google.com/detail/tokcount-%E2%80%94-live-token-cos/pkpdcbmcopflnbealamhephpoeimnogd) |
-| Firefox / LibreWolf | [Firefox Add-ons →](https://addons.mozilla.org/en-US/firefox/addon/tokcount-live-token-cost-4-ai/) |
-| Microsoft Edge | [Edge Add-ons →](https://microsoftedge.microsoft.com/addons/detail/pnbfdjaampealnhgocojhnbjenbfklpo) |
-
-> No account. No API key. Installs in 10 seconds. Free forever.
-> Full landing page: **[extensions.voiddo.com/tokcount/](https://extensions.voiddo.com/tokcount/)**
 
 ## Why tokcount
 
@@ -132,7 +117,7 @@ If you need cryptographically-exact counts for billing reconciliation, use the p
 
 Prices in tokcount are a snapshot taken **2026-04**. Providers change pricing monthly. Run `tokcount --list-models` to see what the installed binary knows, and bump the package when you want fresh numbers. All prices are input/output **USD per 1,000,000 tokens**.
 
-## JSON / CSV — pipeline-friendly
+## JSON / CSV: pipeline-friendly
 
 ```bash
 # what fits, what doesn't, in machine-readable form
@@ -159,28 +144,14 @@ compareModels('some prompt', 500);
 // → { 'gpt-4o': {...}, 'claude-sonnet-4-6': {...}, ... }
 ```
 
-## Why free forever
-
-We are [**vøiddo**](https://voiddo.com) — a studio building small, sharp tools and a few serious products ([scrb](https://scrb.voiddo.com), [rankd](https://rankd.voiddo.com), [gridlock](https://gl.voiddo.com), and more). The serious products pay for themselves. The tools are gifts.
-
-We write tokcount because _we_ are on the other side of an LLM API all day, and we needed a fast, local answer to "how much."
-
-## From the same studio
-
-- **[@v0idd0/jsonyo](https://www.npmjs.com/package/@v0idd0/jsonyo)** — JSON swiss army knife, 18 commands, zero limits
-- **[@v0idd0/envguard](https://www.npmjs.com/package/@v0idd0/envguard)** — stop shipping `.env` drift to staging
-- **[@v0idd0/depcheck](https://www.npmjs.com/package/@v0idd0/depcheck)** — find unused dependencies
-- **[@v0idd0/gitstats](https://www.npmjs.com/package/@v0idd0/gitstats)** — git repo analytics, one command
-- **[View all tools →](https://voiddo.com/tools/)**
-
 ## Contributing
 
-Model gone? Price stale? New provider? Open an issue at [github.com/voidd0/tokcount/issues](https://github.com/voidd0/tokcount/issues) or drop a line to [support@voiddo.com](mailto:support@voiddo.com). The model table in `src/counter.js` is a plain JS object — PRs welcome.
+Model gone? Price stale? New provider? Open an issue at [github.com/voidd0/tokcount/issues](https://github.com/voidd0/tokcount/issues) or drop a line to [support@voiddo.com](mailto:support@voiddo.com). The model table in `src/counter.js` is a plain JS object, PRs welcome.
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+MIT: see [LICENSE](./LICENSE).
 
 ---
 
-Built by [vøiddo](https://voiddo.com/) — a small studio shipping AI-flavoured products, free dev tools, Chrome extensions and weird browser games.
+Maintained by v0idd0.
